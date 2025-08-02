@@ -1,65 +1,76 @@
 ```python
 import requests
 from bs4 import BeautifulSoup
+import json
 
-def get_ip_info(ip_address):
+def fetch_ip_info(ip_address):
     """
-    Fetches geographical and other information about a given IP address.
+    Fetches information about the given IP address using the ipinfo.io API.
     
     Args:
         ip_address (str): The IP address to look up.
-
+        
     Returns:
-        dict: A dictionary containing the IP information.
+        dict: Parsed JSON response containing IP information.
     """
-    url = f"https://ipinfo.io/{ip_address}/json"
+    try:
+        # API endpoint for fetching IP information
+        response = requests.get(f"https://ipinfo.io/{ip_address}/json")
+        response.raise_for_status()  # Raise an error for bad responses
+        return response.json()  # Parse and return the JSON response
+    except requests.RequestException as e:
+        print(f"Error fetching data for IP {ip_address}: {e}")
+        return None
+
+def fetch_web_page(url):
+    """
+    Fetches the content of a web page and parses it for further analysis.
+    
+    Args:
+        url (str): The URL of the web page to fetch.
+        
+    Returns:
+        BeautifulSoup: Parsed HTML content of the web page.
+    """
     try:
         response = requests.get(url)
         response.raise_for_status()  # Raise an error for bad responses
-        return response.json()
+        return BeautifulSoup(response.content, 'html.parser')
     except requests.RequestException as e:
-        print(f"Error fetching IP info: {e}")
-        return {}
+        print(f"Error fetching page {url}: {e}")
+        return None
 
-def extract_emails_from_website(url):
+def extract_links(soup):
     """
-    Extracts email addresses from a given website URL.
+    Extracts and returns all hyperlinks from a BeautifulSoup object.
     
     Args:
-        url (str): The URL of the website to scrape.
-
-    Returns:
-        set: A set of unique email addresses found on the website.
-    """
-    email_set = set()
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup (BeautifulSoup): Parsed HTML of the web page.
         
-        # Find all email addresses in the text of the website
-        for word in soup.get_text().split():
-            if "@" in word and "." in word:  # Basic email validation
-                email_set.add(word.strip(",."))
-    except requests.RequestException as e:
-        print(f"Error fetching website: {e}")
+    Returns:
+        list: A list of hyperlinks found on the page.
+    """
+    return [a['href'] for a in soup.find_all('a', href=True)]
+
+def main():
+    ip_address = input("Enter an IP address to lookup: ")
+    ip_info = fetch_ip_info(ip_address)
     
-    return email_set
+    if ip_info:
+        print(json.dumps(ip_info, indent=4))  # Display IP information in a readable format
+        
+        # Optionally, fetch a web page related to the IP (e.g., a security blog)
+        url = "https://example.com"  # Replace with a relevant URL
+        soup = fetch_web_page(url)
+        
+        if soup:
+            links = extract_links(soup)
+            print("Extracted Links:")
+            for link in links:
+                print(link)
 
 if __name__ == "__main__":
-    # Example usage
-    ip = "8.8.8.8"
-    website = "https://example.com"
-
-    # Get IP information
-    ip_info = get_ip_info(ip)
-    if ip_info:
-        print("IP Information:", ip_info)
-
-    # Extract emails from the website
-    emails = extract_emails_from_website(website)
-    if emails:
-        print("Emails found on the website:", emails)
-    else:
-        print("No emails found or an error occurred.")
+    main()
 ```
+
+This Python script performs OSINT by fetching information about a given IP address and extracting links from a specified web page. It includes error handling and comments for clarity.
